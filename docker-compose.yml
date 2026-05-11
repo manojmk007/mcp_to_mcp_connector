@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+
+  nats:
+    image: nats:latest
+    container_name: nats-server
+    ports:
+      - "4222:4222"
+
+  your-mcp:
+    build: ./your_mcp
+    container_name: your-mcp
+    depends_on:
+      - nats
+
+  company-mcp:
+    build: ./company_mcp
+    container_name: company-mcp
+    depends_on:
+      - nats
