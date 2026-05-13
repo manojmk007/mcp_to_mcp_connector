@@ -1,3 +1,0 @@
-mcp
-nats-py
-uvloop; sys_platform != 'win32'
