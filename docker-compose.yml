@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  # ── MCP1 Local Server ────────────────────────────────────────────────────────
+  mcp1:
+    build:
+      context: .
+      target: mcp1
+    container_name: mcp1-server
+    restart: unless-stopped
+    ports:
+      - "9001:9001"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import asyncio,websockets; asyncio.run(websockets.connect('ws://localhost:9001/ws'))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - mcp-net
+
+  # ── MCP Proxy Gateway ─────────────────────────────────────────────────────────
+  proxy:
+    build:
+      context: .
+      target: proxy
+    container_name: mcp-proxy
+    restart: unless-stopped
+    ports:
+      - "8765:8765"    # WebSocket
+      - "8088:8088"    # HTTP / SSE / Admin
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=INFO
+      - JSON_LOGS=true
+      - MCP1_HOST=mcp1
+      - MCP1_PORT=9001
+      - THUNAI_MCP_URL=${THUNAI_MCP_URL:-https://api.thunai.ai/mcp-service/thunai/service/mcp-sse/mcp}
+      - CB_FAILURE_THRESHOLD=5
+      - CB_RECOVERY_TIMEOUT_S=30.0
+    depends_on:
+      mcp1:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    networks:
+      - mcp-net
+
+networks:
+  mcp-net:
+    driver: bridge
